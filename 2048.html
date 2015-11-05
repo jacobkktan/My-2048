@@ -174,7 +174,12 @@ Block.prototype.MoveLeft = function() {
 		if(posX === 0) cont = false;
 	}
 	var timing = 100*boxesToMove;
-	console.log(posY,posX);
+	var seq = Grid.GetSeq(posY,posX);
+	var $toObj = $("div.number:eq("+seq+")");
+	this._displayBlock.animate({
+		left:$toObj.offset().left
+	}, timing);
+	this.GridObject.UpdateBlockPosition(this.Position,{y:posY,x:posX},this);
 };
 
 Block.prototype.Remove = function() {
@@ -189,16 +194,21 @@ var Grid = function() {
 		var subGrid = [null,null,null,null];
 		this.Blocks.push(subGrid);
 	}
-
-	while($("div.with-content").length < 2) {
-		var elementNo = Math.floor(Math.random() * 16);
-		var $selector = $("div.number:eq("+elementNo+")");
-		if($selector.length > 0 && !$selector.hasClass("with-content")) {
-			var pos = Grid.GetPosition(elementNo);
-			this.Blocks[pos.y][pos.x] = new Block($selector,2,pos, this); 
-		}
-	};
+	for(var i=0 ; i<2 ;i++) {
+		this.AddRandomBlock();
+	}
 }; //default constructor
+
+Grid.prototype.AddRandomBlock = function() {
+	if($("div.number.with-content").length == 16) return;
+	var $selector = [];
+	while($selector.length == 0) {
+		var elementNo = Math.floor(Math.random() * 16);
+		$selector = $("div.number:eq("+elementNo+")").not(".with-content");	
+	}
+	var pos = Grid.GetPosition(elementNo);
+	this.Blocks[pos.y][pos.x] = new Block($selector,2,pos, this); 
+}
 
 Grid.prototype.ResizeBlocks = function() {
 	for(var i=0; i<4 ;i++) {
@@ -212,7 +222,12 @@ Grid.prototype.ResizeBlocks = function() {
 
 Grid.prototype.RemoveBlock = function(pos) {
 	this.Blocks[pos.y][pos.x] = null;
-}
+};
+
+Grid.prototype.UpdateBlockPosition = function(oldPosition,newPosition,block) {
+	this.Blocks[newPosition.y][newPosition.x] = block;
+	this.RemoveBlock(oldPosition);
+};
 
 Grid.GetSeq = function(y,x) {
 	return (y*4)+x;
