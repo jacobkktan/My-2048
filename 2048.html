@@ -1,36 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta name="viewport" number="width=device-width, maximum-scale=1" />
+	<title>Jacob's 2048</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<style type="text/css">
 		body {		    
-		    
+		    text-align: center;
 		}
-
 		.square {
-		    float:left;
-		    position: relative;
-		    width: 20%;
-		    padding-bottom : 20%;
-		    margin:2.5%;
-		    background-color:#FFE6CC;
-		    overflow:hidden;
+	    float:left;
+	    position: relative;
+	    width: 20%;
+	    padding-bottom : 20%;
+	    margin:2.5%;
+	    background-color:#FFE6CC;
+	    overflow:hidden;
 		}
-
 		.number {
-				display:table-cell;
-		    position:absolute;
-		    height:90%;
-		    width:90%;
-		    padding: 5%;
-		    font-weight:400;
-		    font-size:150px;
-				vertical-align: middle;
-				text-align: center;
+			
+	    position:absolute;
+	    height:90%;
+	    width:90%;
+	    padding: 5%;
+	    font-weight:400;
+	
 		}
-
 		.container {
 			width:100%;
+			max-width: 400px;
+			position:relative;
+		}
+		.overblock {
+			display:table-cell;
+			position:absolute;
+			z-index: 10; /*ensure it is on top when needed*/
+			font-size:50px;
+			vertical-align: middle;
+			text-align: center;
 		}
 	</style>
 </head>
@@ -101,18 +107,149 @@
 		    </div>
 		</div>
 	</div>	
+	<table>
+		<tr><td></td><td><button id="up">Up</button></td><td></td></tr>
+		<tr><td><button id="left">Left</button></td><td></td><td><button id="right">Right</button></td></tr>
+		<tr><td></td><td><button id="down">Down</button></td><td></td></tr>
+	</table>
 </body>
 <!--add to after body, do not want JS to hinder load times -->
 <script src="js-temp/jquery-1.11.3.min.js"></script>
 <script>
-//do not need .ready() because scripts are at the bottom
-while($("div.with-content").length < 2) {
-	var elementNo = Math.floor(Math.random() * 16) - 1;
-	var $selector = $("div.number:eq("+elementNo+")");
-	if(!$selector.hasClass("with-content")) {
-		$selector.addClass("with-content").text("2").data("val",2);
+//build object for blocks
+var Block = function(element,value,position, gridObject) {
+	this._element = element;
+	this.Merged = false;
+	this.Position = position;
+	//javascript reference, does not take up extra memory
+	//hence we can store the reference to grid object for easy coding
+	this.GridObject = gridObject;	
+	element.addClass("with-content");	
+	this.AddOverBlock();
+	this.SetValue(value);
+}; //default constructor
+
+Block.prototype.AddOverBlock = function() {
+	var element = this._element;
+	var overBlock = $('<div class="overblock"></div>');
+	$("body").append(overBlock);
+	this._displayBlock = overBlock;
+	this.ResizeOverBlock();
+
+};
+
+Block.prototype.SetValue = function(value) {
+	this.Value = value;
+	this._displayBlock.text(value);
+};
+
+Block.prototype.ResizeOverBlock = function() {
+	var element = this._element;
+	this._displayBlock.offset(element.offset())
+		.height(element.height())
+		.width(element.width())
+		.css("padding",element.css("padding"));
+}
+
+Block.prototype.MoveLeft = function() {
+	//cycle through all the left side and see if there's a merge
+	//if not animate to move it
+	var posX = this.Position.x;
+	var posY = this.Position.y;
+	var cont = true, boxesToMove = 0;
+	var blocks = this.GridObject.Blocks;
+	while(cont) {
+		posX--;
+		var block = blocks[posX][posY];
+		if(block == null) {
+			boxesToMove++;
+		} else {
+			cont = false;
+			if(block.Value == this.Value && block.Merged == false) {
+				//perform a merge
+				boxesToMove++;
+				block.Remove
+			}
+		}
+		if(posX === 0) cont = false;
 	}
+	var timing = 100*boxesToMove;
+	console.log(posY,posX);
+};
+
+Block.prototype.Remove = function() {
+	this._element.removeClass("with-content");
+	this._displayBlock.remove();
+	this.GridObject.RemoveBlock(this.Position);
+};
+//build object for grid
+var Grid = function() {
+	this.Blocks = [];
+	for(var i=0 ; i < 4 ; i ++) {
+		var subGrid = [null,null,null,null];
+		this.Blocks.push(subGrid);
+	}
+
+	while($("div.with-content").length < 2) {
+		var elementNo = Math.floor(Math.random() * 16);
+		var $selector = $("div.number:eq("+elementNo+")");
+		if($selector.length > 0 && !$selector.hasClass("with-content")) {
+			var pos = Grid.GetPosition(elementNo);
+			this.Blocks[pos.y][pos.x] = new Block($selector,2,pos, this); 
+		}
+	};
+}; //default constructor
+
+Grid.prototype.ResizeBlocks = function() {
+	for(var i=0; i<4 ;i++) {
+		for(var x=0; x<4; x++) {
+			console.log(i,x)
+			var block = this.Blocks[i][x];
+			if(block!=null) block.ResizeOverBlock();
+		}
+	}
+};
+
+Grid.prototype.RemoveBlock = function(pos) {
+	this.Blocks[pos.y][pos.x] = null;
+}
+
+Grid.GetSeq = function(y,x) {
+	return (y*4)+x;
+}
+
+Grid.GetPosition = function(pos) {
+	return {x:pos % 4, y: Math.floor(pos/4)};
 }
 </script>
+<script>
+var gridObject = new Grid();
+//functions to control up down left or right
+function swipeUp() {
+	alert("swipe up");
+};
 
+function swipeDown() {
+	alert("swipe down");
+};
+
+function swipeLeft() {
+	alert("swipe left");
+};
+
+function swipeRight() {
+	alert("swipe right");
+};
+</script>
+
+<script>
+//temporary scripts
+//bind events
+$(window).on("resize",function(){gridObject.ResizeBlocks();});
+$("#up").on("click",swipeUp);
+$("#down").on("click",swipeDown);
+$("#left").on("click",swipeLeft);
+$("#right").on("click",swipeRight);
+
+</script>
 </html>
