@@ -126,7 +126,8 @@ var Block = function(element,value,position, gridObject) {
 	this.GridObject = gridObject;	
 	element.addClass("with-content");	
 	this.AddOverBlock();
-	this.SetValue(value);
+	this.Value = value;
+	this.UpdateView();
 }; //default constructor
 
 Block.prototype.AddOverBlock = function() {
@@ -138,10 +139,9 @@ Block.prototype.AddOverBlock = function() {
 
 };
 
-Block.prototype.SetValue = function(value) {
-	this.Value = value;
-	this._displayBlock.text(value);
-};
+Block.prototype.UpdateView = function() {
+	this._displayBlock.text(this.Value);
+}
 
 Block.prototype.ResizeOverBlock = function() {
 	var element = this._element;
@@ -158,9 +158,11 @@ Block.prototype.MoveLeft = function() {
 	var posY = this.Position.y;
 	var cont = true, boxesToMove = 0;
 	var blocks = this.GridObject.Blocks;
+	if(posX == 0) return;
 	while(cont) {
 		posX--;
-		var block = blocks[posX][posY];
+
+		var block = blocks[posY][posX];
 		if(block == null) {
 			boxesToMove++;
 		} else {
@@ -168,22 +170,55 @@ Block.prototype.MoveLeft = function() {
 			if(block.Value == this.Value && block.Merged == false) {
 				//perform a merge
 				boxesToMove++;
-				block.Remove
-			}
+			} else {posX++;} //set back original position
 		}
-		if(posX === 0) cont = false;
+		if(posX <= 0) cont = false;
 	}
-	var timing = 100*boxesToMove;
-	var seq = Grid.GetSeq(posY,posX);
-	var $toObj = $("div.number:eq("+seq+")");
-	this._displayBlock.animate({
-		left:$toObj.offset().left
-	}, timing);
-	this.GridObject.UpdateBlockPosition(this.Position,{y:posY,x:posX},this);
+	var timing = 50*boxesToMove;
+	this.MoveTo({x:posX,y:posY}, timing);
 };
+
+Block.prototype.MoveTo = function(newPosition, timing) {
+	//return if no change in position
+	if(this.Position.y == newPosition.y && this.Position.x == newPosition.x) return;
+	var $target = $("div.number:eq("+Grid.GetSeq(newPosition.y,newPosition.x)+")");
+	var existing = this.GridObject.Blocks[newPosition.y][newPosition.x];
+	var targetToDestroy = null;
+	if(existing!=null) {
+		//performing a merge
+		this.Value = this.Value * 2;
+		this.UpdateView();
+		//targetToDestroy = existing._displayBlock;
+		this.GridObject.RemoveBlock(newPosition);
+		existing.Remove();
+	}
+	this._element.removeClass("with-content");
+	this._element = $target.addClass("with-content");
+	this.GridObject.UpdateBlockPosition(this.Position,newPosition,this);
+	this.Position = newPosition;	
+	$that = this;
+	this._displayBlock.animate({
+			left:$target.offset().left,
+			top: $target.offset().top
+		}, 
+		timing,
+		function(){
+			//$that.UpdateView();
+			//if(targetToDestroy!=null)targetToDestroy.remove();
+		}
+	);
+}
+
+Block.prototype.MergeWith = function(toElement) {
+	this.SetValue(this.Value * 2);
+	this.Merged = true;
+	this._element.removeClass("with-content");
+	this._element = toElement;
+}
 
 Block.prototype.Remove = function() {
 	this._element.removeClass("with-content");
+	//block should destroy after animation;
 	this._displayBlock.remove();
 	this.GridObject.RemoveBlock(this.Position);
 };
@@ -213,7 +248,6 @@ Grid.prototype.AddRandomBlock = function() {
 Grid.prototype.ResizeBlocks = function() {
 	for(var i=0; i<4 ;i++) {
 		for(var x=0; x<4; x++) {
-			console.log(i,x)
 			var block = this.Blocks[i][x];
 			if(block!=null) block.ResizeOverBlock();
 		}
@@ -228,6 +262,18 @@ Grid.prototype.UpdateBlockPosition = function(oldPosition,newPosition,block) {
 	this.Blocks[newPosition.y][newPosition.x] = block;
 	this.RemoveBlock(oldPosition);
 };
+
+Grid.prototype.MoveLeft = function() {
+	for(var i=0;i<4;i++) {
+		for(var x=0;x<4;x++) {
+			var block = this.Blocks[i][x];
+			if(block!=null && typeof block == "object") {
+				block.MoveLeft();
+			}
+		}
+	}
+	this.AddRandomBlock();
+}
 
 Grid.GetSeq = function(y,x) {
 	return (y*4)+x;
@@ -249,7 +295,7 @@ function swipeDown() {
 };
 
 function swipeLeft() {
-	alert("swipe left");
+	gridObject.MoveLeft();
 };
 
 function swipeRight() {
