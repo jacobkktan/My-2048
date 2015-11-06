@@ -38,6 +38,9 @@
 			vertical-align: middle;
 			text-align: center;
 		}
+		.medium {
+			font-size:35px !important;
+		}
 	</style>
 </head>
 <body>
@@ -148,6 +151,7 @@ Block.prototype.AddOverBlock = function() {
 
 Block.prototype.UpdateView = function() {
 	this._displayBlock.text(this.Value);
+	if(this.Value>1000) {this._displayBlock.addClass("medium");}
 	this.Moved = false;
 }
 
@@ -219,82 +223,6 @@ Block.prototype.Move =function(dir) {
 			case direction.down:
 				if(posY==3)cont = false;break;
 		};
-	}
-	var timing = timingPerBox*boxesToMove;
-	this.MoveTo({x:posX,y:posY}, timing);
-};
-
-Block.prototype.MoveRight = function() {
-	var posX = this.Position.x;
-	var posY = this.Position.y;
-	var cont = true, boxesToMove = 0;
-	var blocks = this.GridObject.Blocks;
-	if(posX == 3) return;
-	while(cont) {
-		posX++;
-		var block = blocks[posY][posX];
-		if(block == null) {
-			boxesToMove++;
-		} else {
-			cont = false;
-			if(block.Value == this.Value && block.Merged == false) {
-				//perform a merge
-				boxesToMove++;
-			} else {posX--;} //set back original position
-		}
-		if(posX >= 3) cont = false;
-	}
-	var timing = timingPerBox*boxesToMove;
-	this.MoveTo({x:posX,y:posY}, timing);
-};
-
-Block.prototype.MoveDown = function() {
-	var posX = this.Position.x;
-	var posY = this.Position.y;
-	var cont = true, boxesToMove = 0;
-	var blocks = this.GridObject.Blocks;
-	if(posY == 3) return;
-	while(cont) {
-		posY++;
-
-		var block = blocks[posY][posX];
-		if(block == null) {
-			boxesToMove++;
-		} else {
-			cont = false;
-			if(block.Value == this.Value && block.Merged == false) {
-				//perform a merge
-				boxesToMove++;
-			} else {posY--;} //set back original position
-		}
-		if(posY >= 3) cont = false;
-	}
-	var timing = timingPerBox*boxesToMove;
-	this.MoveTo({x:posX,y:posY}, timing);
-};
-
-Block.prototype.MoveLeft = function() {
-	//cycle through all the left side and see if there's a merge
-	//if not animate to move it
-	var posX = this.Position.x;
-	var posY = this.Position.y;
-	var cont = true, boxesToMove = 0;
-	var blocks = this.GridObject.Blocks;
-	if(posX == 0) return;
-	while(cont) {
-		posX--;
-
-		var block = blocks[posY][posX];
-		if(block == null) {
-			boxesToMove++;
-		} else {
-			cont = false;
-			if(block.Value == this.Value && block.Merged == false) {
-				//perform a merge
-				boxesToMove++;
-			} else {posX++;} //set back original position
-		}
-		if(posX <= 0) cont = false;
 	}
 	var timing = timingPerBox*boxesToMove;
 	this.MoveTo({x:posX,y:posY}, timing);
