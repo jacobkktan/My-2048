@@ -107,19 +107,26 @@
 		    </div>
 		</div>
 	</div>	
-	<table>
+	<!--table>
 		<tr><td></td><td><button id="up">Up</button></td><td></td></tr>
 		<tr><td><button id="left">Left</button></td><td></td><td><button id="right">Right</button></td></tr>
 		<tr><td></td><td><button id="down">Down</button></td><td></td></tr>
-	</table>
+	</table-->
 </body>
 <!--add to after body, do not want JS to hinder load times -->
 <script src="js-temp/jquery-1.11.3.min.js"></script>
 <script>
 //build object for blocks
+var direction = {
+	up:1,
+	down:2,
+	left:3,
+	right:4
+};
+var timingPerBox = 45;
 var Block = function(element,value,position, gridObject) {
 	this._element = element;
-	this.Merged = false;
+	this.Moved = false;
 	this.Position = position;
 	//javascript reference, does not take up extra memory
 	//hence we can store the reference to grid object for easy coding
@@ -141,6 +148,7 @@ Block.prototype.AddOverBlock = function() {
 
 Block.prototype.UpdateView = function() {
 	this._displayBlock.text(this.Value);
+	this.Moved = false;
 }
 
 Block.prototype.ResizeOverBlock = function() {
@@ -149,7 +157,121 @@ Block.prototype.ResizeOverBlock = function() {
 		.height(element.height())
 		.width(element.width())
 		.css("padding",element.css("padding"));
-}
+};
+
+Block.prototype.Move =function(dir) {
+	var posX = this.Position.x;
+	var posY = this.Position.y;
+	var cont = true, boxesToMove = 0;
+	var blocks = this.GridObject.Blocks;
+	switch(dir) {
+		case direction.right:
+			if(posX == 3) return;
+			break;
+		case direction.left:
+			if(posX == 0) return;
+			break;
+		case direction.up:
+			if(posY == 0) return;
+			break;
+		case direction.down:
+			if(posY == 3) return;
+			break;
+	};
+	while(cont) {
+		switch(dir) {
+			case direction.right:
+				posX++;break;
+			case direction.left:
+				posX--;break;
+			case direction.up:
+				posY--;break;
+			case direction.down:
+				posY++;break;
+		};
+		var block = blocks[posY][posX];
+		if(block == null) {
+			boxesToMove++;
+		} else {
+			cont = false;
+			if(block.Value == this.Value && !block.Moved) {
+				boxesToMove++;
+			} else {
+				switch(dir) {
+					case direction.right:
+						posX--;break;
+					case direction.left:
+						posX++;break;
+					case direction.up:
+						posY++;break;
+					case direction.down:
+						posY--;break;
+				};
+			}
+		};
+		switch(dir) {
+			case direction.right:
+				if(posX==3)cont = false;break;
+			case direction.left:
+				if(posX==0)cont = false;break;
+			case direction.up:
+				if(posY==0)cont = false;break;
+			case direction.down:
+				if(posY==3)cont = false;break;
+		};
+	}
+	var timing = timingPerBox*boxesToMove;
+	this.MoveTo({x:posX,y:posY}, timing);
+};
+
+Block.prototype.MoveRight = function() {
+	var posX = this.Position.x;
+	var posY = this.Position.y;
+	var cont = true, boxesToMove = 0;
+	var blocks = this.GridObject.Blocks;
+	if(posX == 3) return;
+	while(cont) {
+		posX++;
+		var block = blocks[posY][posX];
+		if(block == null) {
+			boxesToMove++;
+		} else {
+			cont = false;
+			if(block.Value == this.Value && block.Merged == false) {
+				//perform a merge
+				boxesToMove++;
+			} else {posX--;} //set back original position
+		}
+		if(posX >= 3) cont = false;
+	}
+	var timing = timingPerBox*boxesToMove;
+	this.MoveTo({x:posX,y:posY}, timing);
+};
+
+Block.prototype.MoveDown = function() {
+	var posX = this.Position.x;
+	var posY = this.Position.y;
+	var cont = true, boxesToMove = 0;
+	var blocks = this.GridObject.Blocks;
+	if(posY == 3) return;
+	while(cont) {
+		posY++;
+
+		var block = blocks[posY][posX];
+		if(block == null) {
+			boxesToMove++;
+		} else {
+			cont = false;
+			if(block.Value == this.Value && block.Merged == false) {
+				//perform a merge
+				boxesToMove++;
+			} else {posY--;} //set back original position
+		}
+		if(posY >= 3) cont = false;
+	}
+	var timing = timingPerBox*boxesToMove;
+	this.MoveTo({x:posX,y:posY}, timing);
+};
 
 Block.prototype.MoveLeft = function() {
 	//cycle through all the left side and see if there's a merge
@@ -174,7 +296,7 @@ Block.prototype.MoveLeft = function() {
 		}
 		if(posX <= 0) cont = false;
 	}
-	var timing = 50*boxesToMove;
+	var timing = timingPerBox*boxesToMove;
 	this.MoveTo({x:posX,y:posY}, timing);
 };
 
@@ -187,33 +309,23 @@ Block.prototype.MoveTo = function(newPosition, timing) {
 	if(existing!=null) {
 		//performing a merge
 		this.Value = this.Value * 2;
-		this.UpdateView();
 		//targetToDestroy = existing._displayBlock;
 		this.GridObject.RemoveBlock(newPosition);
 		existing.Remove();
+		this.Moved = true;
 	}
 	this._element.removeClass("with-content");
 	this._element = $target.addClass("with-content");
 	this.GridObject.UpdateBlockPosition(this.Position,newPosition,this);
 	this.Position = newPosition;	
 	$that = this;
+	this.GridObject.GotMoves = true;
 	this._displayBlock.animate({
 			left:$target.offset().left,
 			top: $target.offset().top
 		}, 
-		timing,
-		function(){
-			//$that.UpdateView();
-			//if(targetToDestroy!=null)targetToDestroy.remove();
-		}
+		timing
 	);
-}
-
-Block.prototype.MergeWith = function(toElement) {
-	this.SetValue(this.Value * 2);
-	this.Merged = true;
-	this._element.removeClass("with-content");
-	this._element = toElement;
 }
 
 Block.prototype.Remove = function() {
@@ -224,6 +336,8 @@ Block.prototype.Remove = function() {
 };
 //build object for grid
 var Grid = function() {
+	//used to determine if new block should be added
+	this.GotMoves = false;
 	this.Blocks = [];
 	for(var i=0 ; i < 4 ; i ++) {
 		var subGrid = [null,null,null,null];
@@ -263,16 +377,77 @@ Grid.prototype.UpdateBlockPosition = function(oldPosition,newPosition,block) {
 	this.RemoveBlock(oldPosition);
 };
 
+Grid.prototype.MoveRight = function() {
+	this.GotMoves = false;
+	for(var i=3;i>=0;i--) {
+		for(var x=3;x>=0;x--) {
+			var block = this.Blocks[i][x];
+			if(block!=null && typeof block == "object") {
+				block.Move(direction.right);
+			}
+		}
+	}
+	this.FinishAnimate();
+	
+};
+
 Grid.prototype.MoveLeft = function() {
+	this.GotMoves = false;
 	for(var i=0;i<4;i++) {
 		for(var x=0;x<4;x++) {
 			var block = this.Blocks[i][x];
 			if(block!=null && typeof block == "object") {
-				block.MoveLeft();
+				block.Move(direction.left);
 			}
 		}
 	}
-	this.AddRandomBlock();
+	this.FinishAnimate();
+}
+
+Grid.prototype.MoveDown = function() {
+	this.GotMoves = false;
+	for(var i=3;i>=0;i--) {
+		for(var x=3;x>=0;x--) {
+			var block = this.Blocks[i][x];
+			if(block!=null && typeof block == "object") {
+				block.Move(direction.down);
+			}
+		}
+	}
+	this.FinishAnimate();
+}
+
+Grid.prototype.MoveUp = function() {
+	this.GotMoves = false;
+	for(var i=0;i<4;i++) {
+		for(var x=0;x<4;x++) {
+			var block = this.Blocks[i][x];
+			if(block!=null && typeof block == "object") {
+				block.Move(direction.up);
+			}
+		}
+	}
+	this.FinishAnimate();
+}
+
+Grid.prototype.FinishAnimate = function() {
+	$that = this;
+	$(":animated").promise().done(function() {
+		//update view of all blocks
+		for(var i=0;i<4;i++) {
+			for(var x=0;x<4;x++) {
+				var block = $that.Blocks[i][x];
+				if(block!=null && typeof block == "object") {
+					block.UpdateView();
+				}
+			}
+		}
+		if($that.GotMoves) {
+			//only add blocks if there are moves
+			$that.AddRandomBlock();	
+		}
+		
+	});
 }
 
 Grid.GetSeq = function(y,x) {
@@ -287,11 +462,11 @@ Grid.GetPosition = function(pos) {
 var gridObject = new Grid();
 //functions to control up down left or right
 function swipeUp() {
-	alert("swipe up");
+	gridObject.MoveUp();
 };
 
 function swipeDown() {
-	alert("swipe down");
+	gridObject.MoveDown();
 };
 
 function swipeLeft() {
@@ -299,7 +474,7 @@ function swipeLeft() {
 };
 
 function swipeRight() {
-	alert("swipe right");
+	gridObject.MoveRight();
 };
 </script>
 
@@ -307,10 +482,54 @@ function swipeRight() {
 //temporary scripts
 //bind events
 $(window).on("resize",function(){gridObject.ResizeBlocks();});
-$("#up").on("click",swipeUp);
+/*$("#up").on("click",swipeUp);
 $("#down").on("click",swipeDown);
 $("#left").on("click",swipeLeft);
-$("#right").on("click",swipeRight);
+$("#right").on("click",swipeRight);*/
 
+var touchPosition
+$(document).on("mousedown",function(evt){
+	touchPosition = {x:evt.pageX, y:evt.pageY};
+	$(document).on("mousemove", moveEvent).on("mouseup",function(evt) {
+		$(document).off("mousemove");
+	})
+}).on("touchstart",function(evt){
+	evt = evt.originalEvent.changedTouches[0];
+	touchPosition = {x:evt.pageX,y:evt.pageY};
+	$(document).off("mousedown").on("touchmove",moveEvent);
+})
+
+function moveEvent(evt) {
+	if(typeof evt.originalEvent != "undefined") evt = evt.originalEvent.changedTouches[0];
+	//calculate where the person swipe
+	//hack for mobile, 
+	var x = touchPosition.x - evt.pageX;
+	var y = touchPosition.y - evt.pageY;
+	var pX = Math.abs(x), pY = Math.abs(y);
+	if(pX>20 || pY>20) {
+		//trigger a move, more than 20pixels
+		//could use a more complicated logic, using circumference theory but this is a simple gesture hence no need;
+		if(pX>pY) {
+			//horizontal movement
+			if(x > 0) {
+				//move left
+				gridObject.MoveLeft();
+			} else {
+				//move right
+				gridObject.MoveRight();
+			}
+		} else {
+			//vertical movement
+			if(y > 0) {
+				//move up
+				gridObject.MoveUp();
+			} else {
+				gridObject.MoveDown();
+			}
+		}
+		//detach event
+		$(document).off("mousemove").off("touchmove").off("mouseup");
+	}
+}
 </script>
 </html>
