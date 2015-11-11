@@ -428,7 +428,8 @@ $(document).on("mousedown",function(evt){
 })
 
 function moveEvent(evt) {
-	if(typeof evt.originalEvent != "undefined") evt = evt.originalEvent.changedTouches[0];
+	if(typeof evt.originalEvent != "undefined" && typeof evt.originalEvent.changedTouchees != "undefined") 
+    evt = evt.originalEvent.changedTouches[0];
 	//calculate where the person swipe
 	//hack for mobile, 
 	var x = touchPosition.x - evt.pageX;
